@@ -22,9 +22,8 @@ function subsetPath({ source, format }) {
   return path.join(outDir, path.basename(source, path.extname(source)) + extensions[format]);
 }
 
-// The notes and data files come first, so a missing character points at the file to fix.
+// Data files come first, so a missing character points at the file to fix.
 const siteText = [
-  ['src/notes', '.mdx'],
   ['src/data', '.ts'],
   ['.next/server/pages', '.html'],
 ];
