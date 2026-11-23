@@ -1,0 +1,731 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+  /* keeps the centered column still when moving between pages that scroll and pages that do not */
+  scrollbar-gutter: stable;
+  text-transform: lowercase;
+  --bg: oklch(98.4% 0.0025 95);
+  --ink: oklch(21% 0.006 70);
+  --body: oklch(40% 0.006 70);
+  --faint: oklch(54% 0.005 70);
+  --rule: oklch(91% 0.004 80);
+  --wash: oklch(95.6% 0.004 85);
+  --value: oklch(50% 0.1 60);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: oklch(15.5% 0.004 70);
+    --ink: oklch(94% 0.004 80);
+    --body: oklch(76% 0.004 80);
+    --faint: oklch(60% 0.004 80);
+    --rule: oklch(27% 0.004 70);
+    --wash: oklch(20% 0.004 70);
+    --value: oklch(80% 0.09 70);
+  }
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 3px;
+}
+
+@layer base {
+  /* tailwind's preflight resets buttons to none, which would exempt them from the root's
+     lowercase */
+  button {
+    text-transform: inherit;
+  }
+  code,
+  kbd,
+  pre,
+  samp {
+    text-transform: none;
+  }
+}
+
+@layer components {
+  .text-link,
+  .prose a:not(:where(.not-prose, .not-prose *)) {
+    color: var(--ink);
+    text-decoration-line: underline;
+    text-decoration-color: var(--faint);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.28em;
+    transition: text-decoration-color 150ms;
+  }
+  .text-link:hover,
+  .prose a:hover:not(:where(.not-prose, .not-prose *)) {
+    text-decoration-color: var(--ink);
+  }
+
+  .faint-link {
+    color: var(--faint);
+    transition: color 150ms;
+  }
+  .faint-link:hover {
+    color: var(--ink);
+  }
+
+  /* the backdrop must never draw over faint or body text, which drop under 4.5:1 where the cloud
+     crosses them, so a plate rises above it. A plate on text that wraps inline, like a lede's, is
+     .plate-inline, whose 3px of block padding covers the lines' half-leading. */
+  .plate,
+  .plate-inline {
+    margin-inline: -1ch;
+    padding-inline: 1ch;
+    background: var(--bg);
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .plate-inline {
+    padding-block: 3px;
+  }
+
+  /* main is sized before trail, so a long trail (a note's tags) clips instead of the title */
+  .index-row {
+    display: grid;
+    grid-template-columns: var(--c1, 16ch) auto minmax(0, 1fr);
+    column-gap: 3ch;
+    margin: 0 -1ch;
+    padding: 0 1ch;
+  }
+  .index-row > * {
+    min-width: 0;
+  }
+  .index-clip,
+  .index-trail {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .index-trail {
+    text-align: right;
+  }
+  a.index-row:hover,
+  a.index-row:focus-visible {
+    background: var(--ink);
+    outline: none;
+  }
+  a.index-row:hover *,
+  a.index-row:focus-visible * {
+    color: var(--bg);
+  }
+  a.index-row:hover :is(.plate, .plate-inline),
+  a.index-row:focus-visible :is(.plate, .plate-inline) {
+    background: transparent;
+  }
+  @media (max-width: 640px) {
+    .index-row {
+      grid-template-columns: var(--c1m, var(--c1, 10ch)) minmax(0, 1fr);
+      column-gap: 2ch;
+    }
+    .index-trail {
+      display: none;
+    }
+    .index-trail-stack {
+      display: block;
+      grid-column: 2;
+      text-align: left;
+      white-space: normal;
+    }
+    .index-clip {
+      white-space: normal;
+    }
+  }
+
+  .contributions {
+    --gap: 2px;
+    --cell: round(down, min(10px, (100cqw - (var(--weeks) - 1) * var(--gap)) / var(--weeks)), 1px);
+    container-type: inline-size;
+  }
+  .contribution-bars,
+  .contribution-caption {
+    width: calc(var(--weeks) * (var(--cell) + var(--gap)) - var(--gap));
+  }
+  .contribution-bars {
+    display: flex;
+    gap: var(--gap);
+  }
+  .contribution-bars > span {
+    --fill: var(--ink);
+    width: var(--cell);
+    height: calc(var(--rows) * (var(--cell) + var(--gap)) - var(--gap));
+    background: repeating-linear-gradient(
+        to top,
+        var(--fill) 0 var(--cell),
+        transparent 0 calc(var(--cell) + var(--gap))
+      )
+      bottom / 100% calc(var(--h) * (var(--cell) + var(--gap))) no-repeat;
+  }
+  .contribution-bars > .empty {
+    --fill: var(--rule);
+  }
+  @media (max-width: 640px) {
+    .contributions {
+      --gap: 1px;
+    }
+  }
+
+  .backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 460px;
+    /* the stage paints above the page text, so Chrome keeps that text in its opaque root layer,
+       with subpixel antialiasing. darken (lighten in dark) leaves bg as if the stage sat behind,
+       because the scene draws only mixes of bg and ink. Anything opaque in the band rises above. */
+    z-index: 1;
+    mix-blend-mode: darken;
+    /* ink text keeps 4.5:1 over the stage only up to about 42%; above that it needs plates too */
+    opacity: 0.4;
+    pointer-events: none;
+    overflow: hidden;
+    /* the scene lifts a wide stage's band into this unfaded top (WIDE_LIFT in
+       src/lib/embeddingsScene.ts) */
+    --unfaded: 55%;
+    -webkit-mask-image: linear-gradient(to bottom, #000 var(--unfaded), transparent);
+    mask-image: linear-gradient(to bottom, #000 var(--unfaded), transparent);
+  }
+  @media (prefers-color-scheme: dark) {
+    .backdrop {
+      mix-blend-mode: lighten;
+    }
+  }
+  .plate,
+  .plate-inline,
+  a.index-row:hover,
+  a.index-row:focus-visible,
+  .skyline,
+  .prose {
+    position: relative;
+    z-index: 2;
+  }
+  /* the home lede's raised plate, later in the DOM, would paint over the lower edge of a focused
+     link's ring on the line above, so the link rises past it */
+  .text-link:focus-visible {
+    position: relative;
+    z-index: 3;
+  }
+  /* Chrome drops a clipped line's ellipsis when the text sits in a raised inline, so a clipping
+     cell rises in place of its plate */
+  :is(.index-clip, .index-trail):has(> .plate-inline) {
+    position: relative;
+    z-index: 2;
+  }
+  :is(.index-clip, .index-trail):has(> .plate-inline) > .plate-inline {
+    position: static;
+  }
+  .backdrop > canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .backdrop:not([data-phase='ready']) > canvas {
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .backdrop[data-phase='ready'] > canvas {
+      animation: fade-in 200ms;
+    }
+  }
+  /* printing drops background graphics, so the plates would vanish and text would print over the
+     cloud. Forced colors give each line of text a backplate, which the stage would paint over */
+  @media print, (forced-colors: active) {
+    .backdrop {
+      display: none;
+    }
+  }
+
+  .skyline {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 672 / 300;
+    max-height: 300px;
+    min-height: 150px;
+    touch-action: pan-y;
+    user-select: none;
+  }
+  .skyline[data-phase='ready'] {
+    cursor: grab;
+  }
+  .skyline[data-dragging] {
+    cursor: grabbing;
+  }
+  .skyline > canvas,
+  .skyline-overlay,
+  .skyline-placeholder {
+    position: absolute;
+    inset: 0;
+  }
+  .skyline > canvas {
+    width: 100%;
+    height: 100%;
+  }
+  /* the scene adds its canvas before React marks the stage ready */
+  .skyline:not([data-phase='ready']) > canvas,
+  .skyline:not([data-phase='ready']) > .skyline-overlay {
+    opacity: 0;
+  }
+  .skyline-overlay {
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .skyline-month {
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--faint);
+    white-space: nowrap;
+    will-change: transform;
+  }
+  /* hidden by default, so a browser without the scripting media feature gets the empty stage too */
+  .skyline-placeholder {
+    display: none;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  @media (scripting: none) {
+    .skyline-placeholder {
+      display: flex;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .skyline[data-phase='ready'] > canvas,
+    .skyline[data-phase='ready'] > .skyline-overlay {
+      animation: fade-in 200ms;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @media (max-width: 640px) {
+    .skyline-more {
+      display: none;
+    }
+  }
+
+  .prose {
+    max-width: calc(37rem + 2px);
+    margin-inline: -1px;
+    padding-inline: 1px;
+    overflow-wrap: break-word;
+    font-family: theme('fontFamily.sans');
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--body);
+    /* a plate for the prose that reaches into the backdrop, including the faint list markers. It
+       reaches 1px past the text, because the column can sit on a half pixel, and Chrome keeps
+       subpixel text above the backdrop only when the text lies inside its plate's whole pixels */
+    background: var(--bg);
+  }
+  .prose p:not(:where(.not-prose, .not-prose *)) {
+    margin: 0 0 1.15em;
+  }
+  .prose h1:not(:where(.not-prose, .not-prose *)),
+  .prose h2:not(:where(.not-prose, .not-prose *)),
+  .prose h3:not(:where(.not-prose, .not-prose *)) {
+    margin: 2.2em 0 0.6em;
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.012em;
+    color: var(--ink);
+  }
+  .prose ul:not(:where(.not-prose, .not-prose *)),
+  .prose ol:not(:where(.not-prose, .not-prose *)) {
+    margin: 0 0 1.15em;
+    padding-left: 2.2ch;
+  }
+  .prose ul:not(:where(.not-prose, .not-prose *)) {
+    list-style: '-  ';
+  }
+  .prose ol:not(:where(.not-prose, .not-prose *)) {
+    list-style: decimal;
+  }
+  .prose li:not(:where(.not-prose, .not-prose *)) {
+    margin: 0.3em 0;
+    padding-left: 0.6ch;
+  }
+  .prose li:not(:where(.not-prose, .not-prose *))::marker {
+    font-family: theme('fontFamily.mono');
+    font-size: 13px;
+    color: var(--faint);
+  }
+  .prose strong:not(:where(.not-prose, .not-prose *)) {
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .prose code:not(:where(.not-prose, .not-prose *)) {
+    font-family: theme('fontFamily.mono');
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+  .ci {
+    color: var(--ink);
+  }
+  .cb {
+    color: var(--body);
+  }
+  .cf {
+    color: var(--faint);
+  }
+  .cn {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .cv {
+    color: var(--value);
+  }
+  .prose pre:not(:where(.not-prose, .not-prose *)) {
+    margin: 0 -20px 1.4em;
+    padding: 16px 20px;
+    overflow-x: auto;
+    white-space: pre;
+    overflow-wrap: normal;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: var(--wash);
+  }
+  .prose li > pre:not(:where(.not-prose, .not-prose *)) {
+    margin-top: 0.6em;
+  }
+  .prose pre code:not(:where(.not-prose, .not-prose *)) {
+    color: inherit;
+    font-size: inherit;
+  }
+  .snippet {
+    margin: 0 -20px 1.4em;
+    background: var(--wash);
+  }
+  .prose .snippet pre {
+    margin: 0;
+  }
+  .snippet-editor {
+    display: block;
+    width: 100%;
+    padding: 16px 20px;
+    resize: vertical;
+    font-family: theme('fontFamily.mono');
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--body);
+    background: var(--wash);
+    text-transform: none;
+    tab-size: 2;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+  }
+  .snippet-controls {
+    display: flex;
+    gap: 2ch;
+    padding: 8px 20px 12px;
+    font-family: theme('fontFamily.mono');
+    font-size: 13px;
+  }
+  .snippet-controls button:disabled {
+    cursor: wait;
+  }
+  .prose .snippet-output {
+    border-top: 1px solid var(--rule);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--body);
+  }
+  .prose blockquote:not(:where(.not-prose, .not-prose *)) {
+    margin: 0 0 1.15em;
+    padding-left: 2ch;
+    border-left: 1px solid var(--rule);
+  }
+  .prose hr:not(:where(.not-prose, .not-prose *)) {
+    margin: 2.6em 0;
+    border-color: var(--rule);
+  }
+  .prose figure:not(:where(.not-prose, .not-prose *)) {
+    margin: 0 0 1.4em;
+  }
+  .prose figcaption:not(:where(.not-prose, .not-prose *)) {
+    margin-top: 8px;
+    font-family: theme('fontFamily.mono');
+    font-size: 13px;
+    color: var(--faint);
+  }
+
+  article:has(.demo) {
+    container-type: inline-size;
+  }
+  .demo {
+    position: relative;
+    display: grid;
+    grid-template-areas: 'stage' 'caption' 'controls' 'description';
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    margin: 32px 0 40px;
+    font-family: theme('fontFamily.mono');
+    font-size: 14px;
+    line-height: 1.72;
+    color: var(--ink);
+    background: var(--bg);
+  }
+  /* a browser with container units but no :has would measure the viewport instead */
+  @supports selector(:has(*)) {
+    .demo {
+      width: 100cqw;
+    }
+  }
+  .demo-stage {
+    grid-area: stage;
+    position: relative;
+  }
+  .demo-stage > canvas {
+    width: 100%;
+  }
+  .demo-still {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+  }
+  .demo[data-phase='ready'] .demo-still {
+    display: none;
+  }
+  .demo-caption {
+    grid-area: caption;
+    display: flex;
+    justify-content: space-between;
+    column-gap: 3ch;
+    min-height: 1.72em;
+    margin-top: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .demo-caption > :first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .demo-caption > :last-child {
+    flex-shrink: 0;
+    color: var(--faint);
+  }
+  .demo-controls {
+    grid-area: controls;
+    display: grid;
+    gap: 4px;
+    margin-top: 16px;
+  }
+  .demo-caption:empty,
+  .demo-controls:empty {
+    display: none;
+  }
+  .demo-slider {
+    display: grid;
+    grid-template-columns: 13ch minmax(0, 1fr) 6ch;
+    column-gap: 2ch;
+    align-items: center;
+  }
+  .demo-slider > label {
+    color: var(--faint);
+  }
+  .demo-value {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .demo input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 24px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .demo input[type='range']::-webkit-slider-runnable-track {
+    height: 1px;
+    background: var(--faint);
+  }
+  .demo input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    margin-top: -5.5px;
+    border: 0;
+    border-radius: 0;
+    background: var(--ink);
+  }
+  .demo input[type='range']::-moz-range-track {
+    height: 1px;
+    background: var(--faint);
+  }
+  .demo input[type='range']::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 0;
+    border-radius: 0;
+    background: var(--ink);
+  }
+  .demo:not([data-phase='ready']) input[type='range']::-webkit-slider-thumb {
+    visibility: hidden;
+  }
+  .demo:not([data-phase='ready']) input[type='range']::-moz-range-thumb {
+    visibility: hidden;
+  }
+  .demo-button {
+    color: var(--faint);
+    transition: color 150ms;
+  }
+  .demo-button:hover,
+  .demo-button[aria-pressed='true'] {
+    color: var(--ink);
+  }
+  .demo-button[aria-pressed='true'] {
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 5px;
+  }
+  .demo-description {
+    grid-area: description;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .demo-description > :last-child {
+    margin-bottom: 0;
+  }
+  .demo:is([data-phase='still'], [data-phase='fallback']) :is(.demo-caption, .demo-controls) {
+    visibility: hidden;
+  }
+  .demo[data-phase='fallback']:not(:has(.demo-still)) .demo-description {
+    grid-area: stage;
+    align-self: center;
+    position: relative;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+    padding: 0 2ch;
+    color: var(--body);
+  }
+  @media (scripting: none) {
+    .demo-caption,
+    .demo-controls {
+      display: none;
+    }
+    .demo-description {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip-path: none;
+      white-space: normal;
+      margin-top: 10px;
+      color: var(--body);
+    }
+  }
+  @media (max-width: 640px) {
+    .demo-slider {
+      grid-template-columns: 12ch minmax(0, 1fr) 6ch;
+      column-gap: 1.5ch;
+    }
+  }
+  .demo-receipt {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+  .demo-receipt caption {
+    padding-bottom: 6px;
+    text-align: left;
+    color: var(--faint);
+  }
+  .demo-receipt :is(th, td) {
+    padding: 5px 0;
+    font-weight: 400;
+    text-align: left;
+    vertical-align: top;
+  }
+  .demo-receipt :is(th, td):not(:first-child) {
+    width: 9ch;
+    padding-left: 2ch;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .demo-receipt thead th {
+    border-bottom: 1px solid var(--rule);
+    color: var(--faint);
+  }
+  .demo-receipt tbody + tbody > tr:first-child > * {
+    border-top: 1px solid var(--rule);
+  }
+  .demo-receipt tbody:last-child > tr:last-child > * {
+    border-bottom: 1px solid var(--rule);
+  }
+  .demo-knob th,
+  .demo-receipt small,
+  .demo-receipt td:last-child:empty::after {
+    color: var(--faint);
+  }
+  .demo-receipt small {
+    display: block;
+    font-size: inherit;
+  }
+  .demo-receipt td:last-child:empty::after {
+    content: '·' / '';
+  }
+  .demo-receipt th > span {
+    display: inline-block;
+    min-width: 3ch;
+    text-align: right;
+  }
+  .demo-receipt [data-line='miss'] th > span {
+    min-width: 4ch;
+  }
+  .demo:not([data-phase='ready']) :is(.demo-receipt-live, .demo-readout) {
+    visibility: hidden;
+  }
+  .demo-receipt.demo-still {
+    height: auto;
+  }
+  .demo-readout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 3ch;
+    margin-top: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .demo-readout[hidden] {
+    display: none;
+  }
+  .demo-readout dt {
+    color: var(--faint);
+  }
+  .demo-readout dd {
+    margin: 0;
+    text-align: right;
+  }
+  .demo-actions {
+    display: flex;
+    column-gap: 3ch;
+  }
+}

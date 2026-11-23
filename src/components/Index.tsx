@@ -1,0 +1,171 @@
+import clsx from 'clsx';
+import Link from 'next/link';
+import React, { CSSProperties, ComponentPropsWithoutRef, ReactNode } from 'react';
+
+import type { Project } from '../data/projects';
+import type { WorkEntry } from '../data/work';
+
+type Tone = 'ink' | 'body' | 'faint';
+
+const toneClass: Record<Tone, string> = {
+  ink: 'text-ink',
+  body: 'text-body',
+  faint: 'text-faint',
+};
+
+export function ExternalLink({ children, ...props }: ComponentPropsWithoutRef<'a'>) {
+  return (
+    <a target="_blank" rel="noopener noreferrer" {...props}>
+      {children}
+      <span className="sr-only"> (opens in new tab)</span>
+    </a>
+  );
+}
+
+export function Lede({ children }: { children: ReactNode }) {
+  return <div className="mt-10 max-w-[64ch] text-ink">{children}</div>;
+}
+
+type SectionProps = {
+  label: string;
+  more?: { href: string; label: string; context: string; external?: boolean };
+  children: ReactNode;
+};
+
+export function IndexSection({ label, more, children }: SectionProps) {
+  const moreText = more && (
+    <>
+      {more.label}
+      <span className="sr-only"> {more.context}</span>{' '}
+      <span aria-hidden="true">{more.external ? '↗' : '→'}</span>
+    </>
+  );
+  return (
+    <section className="mt-14">
+      <div className="mb-2 flex justify-between gap-[3ch] text-faint">
+        <h2 className="plate">{label}</h2>
+        {more &&
+          (more.external ? (
+            <ExternalLink href={more.href} className="faint-link plate">
+              {moreText}
+            </ExternalLink>
+          ) : (
+            <Link href={more.href} className="faint-link plate">
+              {moreText}
+            </Link>
+          ))}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+type ListProps = {
+  lead?: string;
+  leadMobile?: string;
+  children: ReactNode;
+};
+
+export function IndexList({ lead, leadMobile, children }: ListProps) {
+  const columns = { '--c1': lead, '--c1m': leadMobile } as CSSProperties;
+  return <ul style={columns}>{children}</ul>;
+}
+
+// Only ink keeps 4.5:1 over the backdrop, so body and faint text sit on a plate that hugs the text.
+function Cell({
+  tone,
+  className,
+  children,
+}: {
+  tone: Tone;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <span className={clsx(toneClass[tone], className)}>
+      {tone === 'ink' ? children : <span className="plate-inline">{children}</span>}
+    </span>
+  );
+}
+
+type RowProps = {
+  href?: string;
+  external?: boolean;
+  lead: ReactNode;
+  main: ReactNode;
+  trail?: ReactNode;
+  leadTone?: Tone;
+  mainTone?: Tone;
+  clip?: boolean;
+  stackTrail?: boolean;
+};
+
+export function IndexRow({
+  href,
+  external,
+  lead,
+  main,
+  trail,
+  leadTone = 'faint',
+  mainTone = 'ink',
+  clip,
+  stackTrail,
+}: RowProps) {
+  const cells = (
+    <>
+      <Cell tone={leadTone}>{lead}</Cell>
+      <Cell tone={mainTone} className={clip ? 'index-clip' : undefined}>
+        {main}
+      </Cell>
+      {trail && (
+        <Cell tone="faint" className={clsx('index-trail', stackTrail && 'index-trail-stack')}>
+          {trail}
+        </Cell>
+      )}
+    </>
+  );
+
+  return (
+    <li>
+      {href && external ? (
+        <ExternalLink href={href} className="index-row">
+          {cells}
+        </ExternalLink>
+      ) : href ? (
+        <Link href={href} className="index-row">
+          {cells}
+        </Link>
+      ) : (
+        <div className="index-row">{cells}</div>
+      )}
+    </li>
+  );
+}
+
+export function WorkRow({ entry }: { entry: WorkEntry }) {
+  const end = entry.end === 'Present' ? 'now' : entry.end;
+  return (
+    <IndexRow
+      href={entry.link}
+      external
+      lead={`${entry.start}–${end}`}
+      main={entry.company}
+      trail={entry.title}
+      stackTrail
+    />
+  );
+}
+
+export function ProjectRow({ project }: { project: Project }) {
+  return (
+    <IndexRow
+      href={project.href}
+      external
+      lead={project.title}
+      leadTone="ink"
+      main={project.description}
+      mainTone="body"
+      trail={project.href && new URL(project.href).hostname.replace(/^www\./, '')}
+    />
+  );
+}

@@ -1,0 +1,60 @@
+import { type ComponentType, type ReactNode, Suspense, createElement, lazy } from 'react';
+
+import type { DemoProps } from './DemoStage';
+import type { FareProps } from './Fare';
+
+// Each shell is its own chunk, so a note loads only the demos its MDX uses. The boundary lets
+// React hydrate the rest of the page before the shell's chunk arrives. If the chunk fails, the
+// note shows the demo's description in its place. React recovers from a server error inside the
+// boundary, so the label check sits outside it, where it fails the build.
+function demo(load: () => Promise<{ default: ComponentType<DemoProps> }>) {
+  const Shell = lazy(() =>
+    load().catch(() => ({ default: ({ children }: DemoProps) => children })),
+  );
+  return function Demo(props: DemoProps) {
+    if (typeof window === 'undefined' && !(props.label && props.children)) {
+      throw new Error('A demo needs a label and a description');
+    }
+    return createElement(Suspense, null, createElement(Shell, props));
+  };
+}
+
+export const TaxiFares = demo(() => import('./TaxiFares'));
+export const FareReceipt = demo(() => import('./FareReceipt'));
+export const LossLandscape = demo(() => import('./LossLandscape'));
+export const Playground = demo(() => import('./Playground'));
+export const Tokenizers = demo(() => import('./Tokenizers'));
+export const CountingModel = demo(() => import('./CountingModel'));
+export const LearnToCount = demo(() => import('./LearnToCount'));
+export const LetterSpace = demo(() => import('./LetterSpace'));
+export const SoftLookup = demo(() => import('./SoftLookup'));
+export const AttentionTriangle = demo(() => import('./AttentionTriangle'));
+export const Heads = demo(() => import('./Heads'));
+
+// React keeps the server's children of an element with dangerouslySetInnerHTML when it hydrates, so a
+// failed chunk leaves the server's numbers in place.
+const LiveFare = lazy<ComponentType<FareProps>>(() =>
+  import('./Fare').catch(() => ({
+    default: () =>
+      createElement('span', {
+        dangerouslySetInnerHTML: { __html: '' },
+        suppressHydrationWarning: true,
+      }),
+  })),
+);
+export const Fare = (props: FareProps) =>
+  createElement(Suspense, null, createElement(LiveFare, props));
+
+export const ResidualStream = demo(() => import('./ResidualStream'));
+export const TrainGpt = demo(() => import('./TrainGpt'));
+
+export function ResidualSection({ children }: { children: ReactNode }) {
+  return createElement(
+    'div',
+    {
+      className:
+        '[content-visibility:auto] [contain-intrinsic-block-size:auto_4009px] max-sm:[contain-intrinsic-block-size:auto_5883px] print:[content-visibility:visible]',
+    },
+    children,
+  );
+}
